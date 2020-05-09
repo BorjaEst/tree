@@ -7,7 +7,7 @@
 -module (tree).
 -include_lib("eunit/include/eunit.hrl").
 
--export([new/0, is_key/2, path/2, add/3]).
+-export([new/0, is_key/2, path/2, add/3, cut/2]).
 
 -export_type([key/0]).
 
@@ -97,6 +97,27 @@ add_test() ->
     ?assertException(error, {badkey,'?'}, add('?', x, test_tree())),
     % Tests conditions when the tree input is not a map
     ?assertException(error, {badmap,x}, add(a, a, x)).
+
+%%--------------------------------------------------------------------
+%% @doc Cuts the key branch from the tree.
+%% @end
+%%--------------------------------------------------------------------
+-spec cut(Key :: key(), Tree :: tree()) -> tree().
+cut(root,   _) -> #{};
+cut(Key, Tree) -> 
+    Cut_Key = fun(_) -> #{} end,
+    update_with(Key, Cut_Key, Tree).
+
+cut_test() ->
+    % Tests conditions when the key is tree member
+    ?assertNotMatch(#{a:=#{b:=_}}, cut(   a, #{a => #{b=>#{}}})),
+    ?assertNotMatch(#{a:=_      }, cut(root, #{a => #{}      })),
+    % Tests conditions when the key is not tree member
+    ?assertException(error, {badkey,'?'}, cut('?',         #{})),
+    ?assertException(error, {badkey,'?'}, cut('?', #{a => #{}})),
+    ?assertException(error, {badkey,'?'}, cut('?', test_tree())),
+    % Tests conditions when the tree input is not a map
+    ?assertException(error, {badmap,x}, cut(a, x)).
 
 
 %%%===================================================================
