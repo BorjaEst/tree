@@ -7,7 +7,7 @@
 -module (tree).
 -include_lib("eunit/include/eunit.hrl").
 
--export([new/0, is_key/2, path/2, add/3, cut/2]).
+-export([new/0, is_key/2, path/2, add/3, cut/2, to_list/1]).
 
 -export_type([key/0]).
 
@@ -118,6 +118,29 @@ cut_test() ->
     ?assertException(error, {badkey,'?'}, cut('?', test_tree())),
     % Tests conditions when the tree input is not a map
     ?assertException(error, {badmap,x}, cut(a, x)).
+
+%%--------------------------------------------------------------------
+%% @doc Transforms the tree into a list of pairs [{Child, Parent}].
+%% @end
+%%--------------------------------------------------------------------
+-spec to_list(Tree :: tree()) -> [{Child :: key(), Parent :: key()}].
+to_list(Tree) -> 
+    {List, root} = maps:fold(fun to_list/3, {[],root}, Tree),
+     List.
+
+to_list(Child, SubTree, {Acc0,Parent}) -> 
+    {Acc1,Child} = maps:fold(fun to_list/3, {Acc0,Child}, SubTree),
+    {[{Child,Parent} | Acc1], Parent}.
+
+to_list_test() ->
+    % Tests conditions when the input is a map
+    ?assertEqual([{a,root},{b,a}], to_list(#{a => #{b=>#{}}})),
+    ?assertEqual([{a,root}      ], to_list(#{a => #{}      })),
+    ?assertEqual([{b,root},{bb,b},{ba,b},{a,root},{ab,a},{aa,a}], 
+                 to_list(test_tree())),
+    % Tests conditions when the tree input is not a map
+    ?assertException(error, {badmap,x}, to_list(x)).
+
 
 
 %%%===================================================================
