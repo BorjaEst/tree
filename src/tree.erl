@@ -4,12 +4,13 @@
 %%% There is a special key 'root' which means at the top of the tree. 
 %%% @end
 %%%-------------------------------------------------------------------
--module (tree).
+-module(tree).
 -include_lib("eunit/include/eunit.hrl").
 
--export([new/0, is_key/2, path/2, add/3, cut/2, to_list/1]).
+-export([new/0, is_key/2, path/2, add/3, cut/2]).
+-export([to_list/1, from_list/1]).
 
--export_type([key/0]).
+-export_type([key/0, tree/0]).
 
 -type  key()  :: term().
 -type tree()  :: #{key() => tree()}.
@@ -123,7 +124,7 @@ cut_test() ->
 %% @doc Transforms the tree into a list of pairs [{Child, Parent}].
 %% @end
 %%--------------------------------------------------------------------
--spec to_list(Tree :: tree()) -> [{Child :: key(), Parent :: key()}].
+-spec to_list(tree()) -> [{Child :: key(), Parent :: key()}].
 to_list(Tree) -> 
     {List, root} = maps:fold(fun to_list/3, {[],root}, Tree),
      List.
@@ -141,6 +142,44 @@ to_list_test() ->
     % Tests conditions when the tree input is not a map
     ?assertException(error, {badmap,x}, to_list(x)).
 
+%%--------------------------------------------------------------------
+%% @doc Transforms the list of pairs [{Child, Parent}] into a tree.
+%% @end
+%%--------------------------------------------------------------------
+-spec from_list([{Child :: key(), Parent :: key()}]) -> tree().
+from_list(List) when is_list(List) -> 
+    PMap = parents_map(List, #{}),
+    {PMap, #{root:=Tree}} = from_list(root, {PMap, #{}}),
+    Tree.
+
+from_list(Parent, {PMap, Tree}) -> 
+    case PMap of 
+        #{Parent := Chx} -> 
+            {PMap,SubT} = lists:foldl(fun from_list/2, {PMap, #{}}, Chx),
+            {PMap, Tree#{Parent=>SubT}};
+        _NotFound -> 
+            {PMap, Tree#{Parent=>#{}}}
+    end.
+
+parents_map([{Ch,P}|Lx], Acc) -> 
+    case Acc of 
+        #{P:=Chx} -> parents_map(Lx, Acc#{P:=[Ch|Chx]});
+               _  -> parents_map(Lx, Acc#{P=>[Ch]    })
+    end;
+parents_map([], Map) -> Map.
+
+parents_map_test() -> 
+    ?assertMatch(#{a:=[b],b:=[c]}, parents_map([{b,a},{c,b}], #{})),
+    ?assertMatch(             #{}, parents_map(           [], #{})).
+
+from_list_test() ->
+    % Tests conditions when the input is a correct list 
+    ?assertEqual(#{a => #{b=>#{}}}, from_list([{a,root},{b,a}])),
+    ?assertEqual(#{a => #{}      }, from_list([{a,root}      ])),
+    ?assertEqual(test_tree(), from_list([{b,root},{bb,b},{ba,b},
+                                         {a,root},{ab,a},{aa,a}])),
+    % Tests conditions when the tree input is not a list
+    ?assertException(error, function_clause, from_list(x)).
 
 
 %%%===================================================================
